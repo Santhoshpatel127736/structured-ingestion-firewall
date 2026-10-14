@@ -1,0 +1,9 @@
+fastapi[standard]
+groq
+pydantic[email]>=2,<3
+instructor
+tiktoken
+python-dotenv
+openai
+pytest
+httpx
