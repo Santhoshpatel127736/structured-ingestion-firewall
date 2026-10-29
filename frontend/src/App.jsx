@@ -3,7 +3,7 @@ import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import "./App.css";
 
-const API_URL =  "https://structured-ingestion-firewall-api.onrender.com";
+const API_URL = "https://structured-ingestion-firewall-api.onrender.com";
 
 function App() {
   const [sessionId, setSessionId] = useState(null);
@@ -24,6 +24,24 @@ function App() {
     setError("");
 
     try {
+      // Step 1: Save the message to Supabase through the backend.
+      const ingestResponse = await fetch(`${API_URL}/ingest`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+
+      const ingestData = await ingestResponse.json();
+
+      if (!ingestResponse.ok) {
+        throw new Error(
+          ingestData.detail ||
+            ingestData.error ||
+            "Failed to save the message."
+        );
+      }
+
+      // Step 2: Get the AI assistant's response.
       const response = await fetch(`${API_URL}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -36,13 +54,19 @@ function App() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || data.error || "Request failed");
+        throw new Error(
+          data.detail || data.error || "Failed to get the AI response."
+        );
       }
 
       setSessionId(data.session_id);
+
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: data.response_markdown },
+        {
+          role: "assistant",
+          content: data.response_markdown || "I couldn't generate a response.",
+        },
       ]);
     } catch (err) {
       setError(err.message || "Could not connect to the server.");
@@ -65,6 +89,7 @@ function App() {
           <h1>AI Support Assistant</h1>
           <p>Enterprise Ingestion Firewall · Conversation Memory</p>
         </div>
+
         <button
           type="button"
           className="new-chat-button"
@@ -85,7 +110,10 @@ function App() {
 
         {messages.map((item, index) => (
           <article className={`message ${item.role}`} key={index}>
-            <strong>{item.role === "user" ? "You" : "AI Assistant"}</strong>
+            <strong>
+              {item.role === "user" ? "You" : "AI Assistant"}
+            </strong>
+
             <div className="message-content">
               <ReactMarkdown>{item.content}</ReactMarkdown>
             </div>
@@ -111,6 +139,7 @@ function App() {
           maxLength={10000}
           disabled={loading}
         />
+
         <button type="submit" disabled={loading || !message.trim()}>
           {loading ? "Sending..." : "Send"}
         </button>
